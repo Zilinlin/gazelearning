@@ -1,4 +1,3 @@
-from http.server import HTTPServer, BaseHTTPRequestHandler#, ThreadingHTTPServer
 import json
 import base64
 import numpy as np
@@ -6,7 +5,6 @@ import cv2
 import os
 import mediapipe as mp
 import math
-import tqdm
 from sklearn.svm import OneClassSVM
 from sklearn import svm
 from joblib import dump, load
@@ -17,10 +15,16 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
 import time
 import argparse
+import flask
+from flask import Flask, redirect, render_template, request
 from threading import Thread
+import logging
 
 CNTR = 0
 TOTAL = 1000
+
+deployed = True
+
 FILEPATH = 'data_temp'
 
 POI4AOI = [33, 7, 163, 144, 145, 153, 154, 155, 133, 246, 161, 160, 159,
@@ -28,10 +32,11 @@ POI4AOI = [33, 7, 163, 144, 145, 153, 154, 155, 133, 246, 161, 160, 159,
            466, 388, 387, 386, 385, 384, 398, 46, 53, 52, 65, 55, 70, 63, 105,
            66, 107, 276, 283, 282, 295, 285, 300, 293, 334, 296, 336]
 
-if not os.path.exists(FILEPATH):
-    # os.rmdir(FILEPATH)
-    os.mkdir(FILEPATH)
-    print('folder {} not find, have created one.'.format(FILEPATH))
+if not deployed:
+    if not os.path.exists(FILEPATH):
+        # os.rmdir(FILEPATH)
+        os.mkdir(FILEPATH)
+        print('folder {} not find, have created one.'.format(FILEPATH))
 
 modelPool = {}
 
@@ -50,7 +55,6 @@ def _normalized_to_pixel_coordinates(normalized_x, normalized_y, image_width, im
     x_px = min(math.floor(normalized_x * image_width), image_width - 1)
     y_px = min(math.floor(normalized_y * image_height), image_height - 1)
     return x_px, y_px
-
 
 def getCrop(img, landmarks):
     h, w, _ = img.shape
@@ -89,7 +93,6 @@ def getCrop(img, landmarks):
     # return cv2.rectangle(dstImg, (left, top), (right, bottom), (255, 0, 0), 2)
     return dstImg[top:bottom+1, left:right+1]
 
-
 def warpFrom(pt1, pt2, pt3):
 
     srcTri = np.array([[pt1[0], pt1[1]],
@@ -104,7 +107,7 @@ def warpFrom(pt1, pt2, pt3):
 
 class StatePredictor:
 
-    def __init__(self, usrname):
+    def __init__(self, usrname, deployed):
         self.facemesh = mp.solutions.face_mesh.FaceMesh(
             max_num_faces=1,
             min_detection_confidence=0.5)
@@ -116,13 +119,14 @@ class StatePredictor:
         self.retrain_interval = 1000 # TODO: incremental training!
         self.dir = os.path.join(FILEPATH, self.username)
         self.training = False
-        if not os.path.exists(self.dir):
-            os.mkdir(self.dir)
-        elif os.path.exists(os.path.join(self.dir, 'pca.joblib')):
-            self.clf = load(os.path.join(self.dir, 'model_pca.joblib'))
-            self.pca = load(os.path.join(self.dir, 'pca.joblib'))
+        self.deployed = deployed
+        if not self.deployed:
+            if not os.path.exists(self.dir):
+                os.mkdir(self.dir)
+            elif os.path.exists(os.path.join(self.dir, 'pca.joblib')):
+                self.clf = load(os.path.join(self.dir, 'model_pca.joblib'))
+                self.pca = load(os.path.join(self.dir, 'pca.joblib'))
 
-    
     def addData(self, img, label, incre=False):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img.flags.writeable = False
@@ -160,12 +164,12 @@ class StatePredictor:
         print(X_train_pca.shape)
         self.clf = self.clf.fit(X_train_pca, labels)
         print('SVM train done in {}s'.format(time.time() - t0))
-    
-        dump(self.clf, os.path.join(self.dir, 'model_pca.joblib'))
-        dump(self.pca, os.path.join(self.dir, 'pca.joblib'))
+
+        if not self.deployed:
+            dump(self.clf, os.path.join(self.dir, 'model_pca.joblib'))
+            dump(self.pca, os.path.join(self.dir, 'pca.joblib'))
 
         self.training = False
-
     
     def confusionDetection(self, img):
         if self.clf is None and not self.training:
@@ -195,105 +199,67 @@ class StatePredictor:
         return 'N/A'
 
 
-
-class ConfusionDetectionRequestHandler(BaseHTTPRequestHandler):
-    def _set_headers(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html')
-        self.end_headers()
-
-    def send_json(self, d):
-        self.wfile.write(bytes(json.dumps(d), "utf8"))
-
-    def _send_cors_headers(self):
-        """ Sets headers required for CORS """
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
-        self.send_header("Access-Control-Allow-Headers",
-                       "x-api-key,Content-Type")
-
-    def do_GET(self):
-        self.send_response(200)
-        self._send_cors_headers()
-        self.end_headers()
-        self.wfile.write("received GET request")
-
-    def do_OPTIONS(self):
-        self.send_response(200)
-        self._send_cors_headers()
-        self.end_headers()
-
-    def do_POST(self):
-        global CNTR, TOTAL, FILEPATH
-        '''Reads post request body'''
-        content_len = int(self.headers.get('content-length', 0))
-        post_body = self.rfile.read(content_len)
-        # print(post_body)
-        data = json.loads(post_body)
-        img_bytes = base64.b64decode(data['img'].split(',')[1])
-        im_arr = np.frombuffer(img_bytes, dtype=np.uint8)
-        img = cv2.imdecode(im_arr, flags=cv2.IMREAD_COLOR)
-        stage = data['stage']
-        username = data['username']
-        if username not in modelPool:
-            modelPool[username] = StatePredictor(username)
-        
-        result = 'success'
-        print(username, 'stage', stage)
-        try:
-            if stage == 0:
-                modelPool[username].addData(img, data['label'])
-            elif stage == 1:
-                result = modelPool[username].confusionDetection(img)
-            else:
-                modelPool[username].addData(img, data['label'], incre=True)
-        except Exception as e:
-            result = 'ERROR'
-            print('ERROR:{}'.format(e))
-        self.send_response(200)
-        self._send_cors_headers()
-        self.send_header('Content-Type', 'application/json')
-        self.end_headers()
-        self.send_json({
-            'method': self.command,
-            'path': self.path,
-            # 'real_path': parsed_path.query,
-            # 'query': parsed_path.query,
-            'request_version': self.request_version,
-            'protocol_version': self.protocol_version,
-            'body': {'result': result},
-        })
-
-def server_run(port):
-    HTTPServer((host, port), ConfusionDetectionRequestHandler).serve_forever()
+app = Flask(__name__)
 
 
-parser = argparse.ArgumentParser()
-# parser.add_argument("-p", "--portid", type=int, default=0,
-#                     help="port id")
-parser.add_argument("-n", "--numserver", type=int, default=0,
-                    help="port id")
-args = parser.parse_args()
+@app.route('/', methods=['GET'])
+def index():
+    """ The home page has a list of prior translations and a form to
+        ask for a new translation.
+    """
 
-host = ''
+    return "<h1>GazeLearning Server: There's nothing you can find here!< /h1 >"
 
-num_server = args.numserver
-# PORT = 8000 + args.portid
-# print('Serving on port {}...'.format(PORT))
 
-# HTTPServer((host, PORT), ConfusionDetectionRequestHandler).serve_forever()
+@app.route('/detection', methods=['POST'])
+def confusion_detection():
+    global CNTR, TOTAL, FILEPATH, deployed
+    data = request.data #.decode('utf-8')
+    data = json.loads(data)
+    # print(data)
+    img_bytes = base64.b64decode(data['img'].split(',')[1])
+    im_arr = np.frombuffer(img_bytes, dtype=np.uint8)
+    img = cv2.imdecode(im_arr, flags=cv2.IMREAD_COLOR)
+    stage = data['stage']
+    username = data['username']
+    if username not in modelPool:
+        modelPool[username] = StatePredictor(username, deployed)
 
-server_threads = []
+    result = 'success'
+    print(username, 'stage', stage)
+    try:
+        if stage == 0:
+            modelPool[username].addData(img, data['label'])
+        elif stage == 1:
+            result = modelPool[username].confusionDetection(img)
+        else:
+            modelPool[username].addData(img, data['label'], incre=True)
+    except Exception as e:
+        result = 'ERROR'
+        logging.error('ERROR:{}'.format(e))
+        print('ERROR:{}'.format(e))
+    resp = flask.Response()
+    resp.set_data(json.dumps({'body': {'result': result}}))
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+    resp.headers["Access-Control-Allow-Headers"] = "x-api-key,Content-Type"
+    resp.headers['Content-Type'] = 'application/json'
+    return resp
+    
 
-for i in range(num_server):
-    PORT = 8000 + i
-    server_threads.append(Thread(target=server_run, args=(PORT,)))
 
-for i in range(num_server):
-    print('Server {} is running on {}...'.format(i, PORT))
-    server_threads[i].daemon = True
-    server_threads[i].start()
-    time.sleep(1)
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--portid", type=int, default=0,
+                        help="port id")
+    args = parser.parse_args()
 
-for i in range(num_server):
-    server_threads[i].join()
+    PORT = 8000 + args.portid
+    # This is used when running locally only. When deploying to Google App
+    # Engine, a webserver process such as Gunicorn will serve the app. This
+    # can be configured by adding an `entrypoint` to app.yaml.
+    # Flask's development server will automatically serve static files in
+    # the "static" directory. See:
+    # http://flask.pocoo.org/docs/1.0/quickstart/#static-files. Once deployed,
+    # App Engine itself will serve those files as configured in app.yaml.
+    app.run(host='0.0.0.0', port=PORT, debug=True)

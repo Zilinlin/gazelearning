@@ -217,13 +217,13 @@
                         });
                 }, inferInterval);
                 document.getElementById("signalling").innerText = "Stop signalling [dev only]";
-                console.log('============Start Signalling (informal)============');
+                console.log('============ Start Signalling ============');
             } else {
                 // Clicked to unregister signalling
                 clearInterval(informal_infer);
                 informal_infer = undefined;
                 document.getElementById("signalling").innerText = "Start signalling [dev only]";
-                console.log('============Stop Signalling (informal)============');
+                console.log('============ Stop Signalling ============');
             }
         }
     </script>

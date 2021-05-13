@@ -10,7 +10,10 @@ window.onload = async function () {
     try {
         await fetchSetting();
     } catch (e) {
+        gazeInfo = true;
+        cogInfo = true;
         console.error('Failed to fetch experiment setting.');
+        console.warn('Will use default setting.');
     }
 
     //////set callbacks for GazeCloudAPI/////////

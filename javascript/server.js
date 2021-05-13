@@ -197,14 +197,14 @@ function sendGazePoints(req, res, next) {
         },
         (res) => {
             logger.info(`STATUS: ${res.statusCode}`);
-            logger.info(`HEADERS: ${JSON.stringify(res.headers)}`);
-            res.setEncoding('utf8');
-            res.on('data', (chunk) => {
-                logger.info(`BODY: ${chunk}`);
-            });
-            res.on('end', () => {
-                logger.info('No more data in response.');
-            });
+            // logger.info(`HEADERS: ${JSON.stringify(res.headers)}`);
+            // res.setEncoding('utf8');
+            // res.on('data', (chunk) => {
+            //     logger.info(`BODY: ${chunk}`);
+            // });
+            // res.on('end', () => {
+            //     logger.info('No more data in response.');
+            // });
         }
     )
 

@@ -157,9 +157,11 @@
         fetch('/admin/trial', {
             method: 'GET',
         }).then(res => res.json()
-        ).then(lectureInfo => formatLectureInfo(lectureInfo)
-        ).catch(e => {
-            console.log(e);
+        ).then(lectureInfo => {
+            if (lectureInfo === null) throw new Error('No registered or legal trial info.');
+            formatLectureInfo(lectureInfo);
+        }).catch(e => {
+            console.error(e);
             formatLectureInfo(errorLectureInfo);
         })
     }

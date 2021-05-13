@@ -264,7 +264,10 @@ class Trial {
 let registeredTrials = [];
 // Read registered lecture information list
 fs.readFile(trialsFilename, 'utf-8', (err, data) => {
-    if (err) throw err;
+    if (err) {
+        logger.error(err);
+        throw err;
+    }
     let lectureList = JSON.parse(data);
     let current = new Date().getTime();
     lectureList.forEach((item) => {
@@ -291,7 +294,11 @@ adminRouter.get('/trial',
     (req, res) => {
         res.statusCode = 200;
         // req.body.number specifies how many lecture information is required.
-        res.send(registeredTrials[0]);
+        if (registeredTrials.length > 0) {
+            res.send(registeredTrials[0]);
+        } else {
+            res.send(null);
+        }
     });
 adminRouter.get('/trials',
     (req, res) => {

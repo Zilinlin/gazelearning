@@ -269,8 +269,16 @@
             .then(res => res.json())
             .then(trials => {
                 allTrials = trials;
-                gazeInfo = allTrials[0].setting.gazeinfo;
-                cogInfo = allTrials[0].setting.coginfo;
+                if (trials.length === 0) {
+                    gazeInfo = true;
+                    cogInfo = true;
+                    console.error('No registered or legal trial info.');
+                    console.warn('Will use default setting.');
+                } else {
+                    gazeInfo = allTrials[0].setting.gazeinfo;
+                    cogInfo = allTrials[0].setting.coginfo;
+                }
+
 
                 // Add trial description card
                 trials.forEach((trial, trialno) => {

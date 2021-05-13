@@ -502,8 +502,10 @@ adminNamespace.on("connection", socket => {
         // Some possible bugs:
         // 1. The instructor comes in early, the same lecture will be scheduled several times
         // 2. When to remove past course?
-
-        let delay = registeredTrials[0].lecture.time - Date.now();
+        let delay;
+        if (registeredTrials.length > 0) {
+             delay = registeredTrials[0].lecture.time - Date.now();
+        }
         if (delay !== undefined) {
             // Assert if delay exists. Emit "delay" event
             // This will allow late students to attend the lecture
@@ -516,7 +518,10 @@ adminNamespace.on("connection", socket => {
         // If the instructor receives "teacher start" event, it is similar to click on sync button;
         // If the student receives "student start" event, it will start to infer every inferInterval;
 
-        let delay = registeredTrials[0].lecture.time - Date.now();
+        let delay;
+        if (registeredTrials.length > 0) {
+            delay = registeredTrials[0].lecture.time - Date.now();
+        }
 
         if (delay > 0 && (unregisterEvent === undefined || unregisterEvent._idleTimeout < 0)) {
             // unregisterEvent === undefined : server just initialized

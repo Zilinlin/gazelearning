@@ -9,6 +9,10 @@ window.onload = async function () {
     try {
         await fetchSetting();
     } catch (e) {
+        gazeInfo = true;
+        cogInfo = true;
+        console.error('Failed to fetch experiment setting.');
+        console.warn('Will use default setting.');
         console.error('Failed to fetch experiment setting: %s', e);
     }
 
@@ -192,7 +196,10 @@ async function updateGazePoints(userInfo) {
             pts: []
         },
         identity
-    ).then(res => {console.log(res); return res;})
+    ).then(res => {
+        console.log(res);
+        return res;
+    })
     .then(result => {
         let animationTime = 1000; //ms
         let confusionRate = 0, inattentionRate = 0, total = result.cognitives.length;

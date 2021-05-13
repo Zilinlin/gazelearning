@@ -255,7 +255,7 @@ function fixationConfusionBinding (samples) {
 
     // fixations.forEach((fixation, i) => console.log(`#${i+1}:${fixation.data.start} - ${fixation.data.end}, contains ${fixation.data.confusionCount}`))
 
-    if (fixations[lastConfusedFixation].confusionCount > 0) {
+    if (fixations.length > 0 && fixations[lastConfusedFixation].confusionCount > 0) {
         console.log('Draw prompt box!')
         showPromptBox(fixations[lastConfusedFixation], patch_w, patch_h);
     } else {

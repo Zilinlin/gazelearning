@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 5000;
 // Definition of constants
 const STUDENT = 1;
 const TEACHER = 2;
-const stuedntsFilename = path.join(FILEPATH, 'registeredInfo', 'registeredStudents.json');
+const studentsFilename = path.join(FILEPATH, 'registeredInfo', 'registeredStudents.json');
 const trialsFilename = path.join(FILEPATH, 'registeredInfo', 'registeredTrials.json');
 const logger = getLogger('dedicated');
 
@@ -67,7 +67,7 @@ if (!DEPLOY) {
     const multipartyMiddleware = multipart();
 
     let registeredStudents = new Map(); // Student Name => Student Number, which is the order of student
-    fs.readFile(stuedntsFilename, 'utf-8', (err, data) => {
+    fs.readFile(studentsFilename, 'utf-8', (err, data) => {
         if (err) throw err;
         let nameList = JSON.parse(data);
         nameList.forEach((item, index) => {

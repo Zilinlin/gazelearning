@@ -194,7 +194,7 @@ def teacher_post():
             resp.headers['Content-Type'] = 'application/json'
             return resp
         else:
-            stuNum = int(body['role'])
+            stuNum = int(body['stuNum'])
             app.logger.info('Student number : {}'.format(stuNum))
 
             all_fixations[stuNum] = body['fixations']

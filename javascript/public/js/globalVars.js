@@ -60,9 +60,9 @@ let cameraId;
 
 let detector = (typeof EKDetector === 'function') ? new EKDetector() : undefined;
 
-let faceLostReported = false;
+let faceLostReported = false; // To prevent duplicated face lost alert
 let lastHiddenTimestamp;
-let hiddenReported = false;
+let hiddenReported = false; // To prevent duplicated hidden window alert
 // ==============================================================
 // constant definition (for better code comprehension)
 // possible states of variable collecting

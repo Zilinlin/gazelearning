@@ -225,6 +225,8 @@ function fixationConfusionBinding (samples) {
     let all_noface = confusion_win.every((state) => state === 'N/A');
 
     if (all_noface) {
+        // Face is lost during past 5s, increase inattention count
+        ++inattention_counter;
         if (!faceLostReported) {
             // Do not keep notifying the student, just once.
             faceLostReported = true;
@@ -547,14 +549,16 @@ async function reportConfusion() {
 function reportInattention() {
     if (document.visibilityState === 'hidden') {
         lastHiddenTimestamp = new Date().getTime();
-        setTimeout(()=>{
-            if (lastHiddenTimestamp && !hiddenReported) {
-                hiddenReported = true;
-                inattention_counter++;
+        setTimeout(() => {
+            if (lastHiddenTimestamp !== 0 && !hiddenReported) {
+                hiddenReported = true; // To prevent duplicated alert
+                ++inattention_counter;
                 new Audio('/media/audio/alert.mp3').play().catch(err => console.log(err));
             }
-        }, updateInterval*inferInterval)
+        }, updateInterval * inferInterval)
     } else if (document.visibilityState === 'visible') {
+        // Student returns.
+        // Remove alert by clean lastHiddenTimestamp
         lastHiddenTimestamp = 0;
         hiddenReported = false;
     }

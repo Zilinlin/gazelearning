@@ -141,6 +141,7 @@ function newUserLogin(req, res, next) {
         'userInfo',
         JSON.stringify({
             'identity': content.identity,
+            'name': content.name,
             'number': identity === STUDENT ? registeredStudents.get(content.name) : null,
             'authcode': identity === STUDENT ? studentAuthHash : teacherAuthHash,
         })

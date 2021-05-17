@@ -65,9 +65,9 @@ window.onload = async function () {
     collectCtx = collectElement.getContext('2d');
     // ==============================================================
 
-    userInfo = getCookie('userInfo');
-    if (!userInfo) throw Error('No user information. Please log in.');
-    userInfo = JSON.parse(userInfo);
+    // userInfo = getCookie('userInfo');
+    // if (!userInfo) throw Error('No user information. Please log in.');
+    // userInfo = JSON.parse(userInfo);
 
     selectCamera();
 

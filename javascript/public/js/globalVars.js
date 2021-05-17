@@ -55,7 +55,7 @@ let secondCounter = 0;
 const inferInterval = 1000; // in micro-second
 const updateInterval = 5; // in second
 
-let userInfo;
+const userInfo = JSON.parse(getCookie('userInfo'));
 let cameraId;
 
 let detector = (typeof EKDetector === 'function') ? new EKDetector() : undefined;
@@ -413,16 +413,22 @@ function selectCamera() {
 
 // =====================Socket.io=====================
 // Socket connection to admin server
-const socket = io("/admin", {
-    autoConnect: false,
+
+// if (!userInfo) throw Error('No user information. Please log in.');
+const socketEndpoint = "https://cogteach.com/admin";
+const socket = io(socketEndpoint, {
+    auth: {
+        identity: userInfo.identity,
+        name: userInfo.name,
+    }
 });
+socket.connect();
 
 // SessionID should've been stored on index.html
-const sessionID = sessionStorage.getItem("sessionID");
-if (sessionID) {
-    socket.auth = { sessionID };
-    socket.connect();
-}
+// const sessionID = sessionStorage.getItem("sessionID");
+// if (sessionID) {
+//     socket.auth = { sessionID };
+// }
 
 // [Entry 1] Pre-lecture
 socket.on("delay", (delay) => {

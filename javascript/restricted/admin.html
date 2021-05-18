@@ -257,6 +257,8 @@
         if (li) {
             console.log(`User ${li.innerText} has disconnected from the server.`);
             li.remove();
+        } else {
+            console.warn('User disconnected, but not shown in the list.');
         }
     });
 

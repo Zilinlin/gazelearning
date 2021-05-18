@@ -197,6 +197,7 @@
             formData.delete('first-name');
             formData.delete('last-name');
         } else { // Teacher
+            formData.set('name', 'Instructor');
             formData.set('passcodeHash', await digestMessage(formData.get('passcode')));
             formData.delete('passcode');
         }

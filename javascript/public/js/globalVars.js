@@ -414,7 +414,6 @@ function selectCamera() {
 // =====================Socket.io=====================
 // Socket connection to admin server
 
-// if (!userInfo) throw Error('No user information. Please log in.');
 const socketEndpoint = "https://cogteach.com/admin";
 const socket = io(socketEndpoint, {
     auth: {
@@ -423,12 +422,6 @@ const socket = io(socketEndpoint, {
     }
 });
 socket.connect();
-
-// SessionID should've been stored on index.html
-// const sessionID = sessionStorage.getItem("sessionID");
-// if (sessionID) {
-//     socket.auth = { sessionID };
-// }
 
 // [Entry 1] Pre-lecture
 socket.on("delay", (delay) => {

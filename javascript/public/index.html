@@ -235,40 +235,6 @@
         });
     });
 
-    function connectSocket() {
-        // =====Socket connection to admin server
-        const socket = io("https://cogteach.com/admin", {
-            autoConnect: false,
-            auth: {
-                identity: document.getElementById("identity-0").checked ? 1 : 2,
-                name: document.getElementById("identity-0").checked ?
-                    [document.getElementById("first-name").value, document.getElementById("last-name").value].join(' ') : 'Instructor',
-            }
-        });
-        // In case the same user logs in several times
-        const sessionID = sessionStorage.getItem("sessionID");
-        if (sessionID) {
-            socket.auth = { sessionID };
-        }
-        socket.connect();
-        console.log(socket);
-
-        socket.on("session", ({ sessionID, userID }) => {
-            // attach the session ID to the next reconnection attempts
-            socket.auth = { sessionID };
-            // store it in the localStorage
-            sessionStorage.setItem("sessionID", sessionID);
-            // save the ID of the user
-            socket.userID = userID;
-            // Session information is stored. Now redirect to new pages.
-            if (document.getElementById('identity-0').checked) {
-                window.open('studentPage.html', '_self');
-            } else {
-                window.open('teacherPage.html', '_self');
-            }
-        });
-    }
-
     async function digestMessage(message) {
         const msgUint8 = new TextEncoder().encode(message);                           // encode as (utf-8) Uint8Array
         const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);           // hash the message

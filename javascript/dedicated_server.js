@@ -397,64 +397,12 @@ function informationPost(req, res) {
 const options = { /* ... */ };
 const io = require('socket.io')(server, options);
 
-/* abstract */
-// class SessionStore {
-//     findSession(id) {
-//     }
-//
-//     saveSession(id, session) {
-//     }
-//
-//     findAllSessions() {
-//     }
-// }
-
-// class InMemorySessionStore extends SessionStore {
-//     constructor() {
-//         super();
-//         this.sessions = new Map();
-//     }
-//
-//     findSession(id) {
-//         return this.sessions.get(id);
-//     }
-//
-//     saveSession(id, session) {
-//         this.sessions.set(id, session);
-//     }
-//
-//     findAllSessions() {
-//         return [...this.sessions.values()];
-//     }
-// }
-
-// let sessionStore = new InMemorySessionStore();
 let unregisterEvent = undefined;
 
 const randomId = () => crypto.randomBytes(8).toString("hex");
 
 const adminNamespace = io.of("/admin");
 adminNamespace.use((socket, next) => {
-    // const sessionID = socket.handshake.auth.sessionID;
-    // if (sessionID) {
-    //     // find existing session
-    //     const session = sessionStore.findSession(sessionID);
-    //     if (session) {
-    //
-    //         logger.info('============================')
-    //         logger.info('Existing socket.')
-    //         logger.info(`session.name: ${session.name}`);
-    //         logger.info(`session.identity: ${session.identity}`);
-    //
-    //         socket.sessionID = sessionID;
-    //         socket.userID = session.userID;
-    //         socket.name = session.name;
-    //         socket.identity = session.identity;
-    //         return next();
-    //     }
-    // }
-    // create new session
-    // socket.sessionID = randomId();
     socket.userID = randomId();
     socket.name = socket.handshake.auth.name;
     socket.identity = socket.handshake.auth.identity;
@@ -477,11 +425,6 @@ adminNamespace.on("connection", socket => {
     } else {
         socket.join("admin");
     }
-
-    // socket.emit("session", {
-    //     sessionID: socket.sessionID,
-    //     userID: socket.userID,
-    // });
 
     const users = [];
     for (let [id, socket] of adminNamespace.sockets) {
@@ -555,13 +498,6 @@ adminNamespace.on("connection", socket => {
         if (isDisconnected) {
             // notify instructor and admin
             socket.to("teacher").to("admin").emit("user disconnected", socket.userID);
-            // update the connection status of the session
-            // sessionStore.saveSession(socket.sessionID, {
-            //     userID: socket.userID,
-            //     name: socket.name,
-            //     identity: socket.identity,
-            //     connected: false,
-            // });
         }
     });
 });

@@ -149,7 +149,7 @@ def teacher_post():
     role = int(body['role'])
     app.logger.info('==============================')
     app.logger.info('Received POST from {}'.format(
-        'student' if role == 1 else 'teacher'))
+        'student' if role == STUDENT else 'teacher'))
 
     try:
         if role == TEACHER:
@@ -172,7 +172,7 @@ def teacher_post():
                 indexed_cog = {'stuNum': k}
                 indexed_cog.update(v)
                 cognitiveFlat.append(indexed_cog)
-            app.logger.debug('cognitiveFlat : {}'.format(cognitiveFlat))
+            app.logger.info('Student in cognitiveFlat : {}'.format([cogInfo['stuNum'] for cogInfo in cognitiveFlat]))
 
             fixationX = np.array([fix['x_per'] for fix in fixationFlat])
             fixationY = np.array([fix['y_per'] for fix in fixationFlat])
@@ -238,6 +238,7 @@ def remove_obs_entries():
         if time.time() - ts > 5:
             del all_fixations[name]
             del all_saccades[name]
+            del all_cognitive[name]
 
 
 if __name__ == '__main__':

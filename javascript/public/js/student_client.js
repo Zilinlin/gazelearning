@@ -174,6 +174,9 @@ async function update() {
             y: gazeY_win,
             t: timestamp_win,
         };
+
+        // For persistent notification on instructor's side
+        if (document.visibilityState === 'hidden') ++inattention_counter;
     }
 
     let fixations = [],
@@ -548,7 +551,6 @@ function reportInattention() {
         setTimeout(() => {
             if (lastHiddenTimestamp !== 0 && !hiddenReported) {
                 hiddenReported = true; // To prevent duplicated alert
-                ++inattention_counter;
                 new Audio('/media/audio/alert.mp3').play().catch(err => console.log(err));
             }
         }, updateInterval * inferInterval)

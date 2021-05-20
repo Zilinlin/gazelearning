@@ -114,7 +114,7 @@ socket.on("student start", () => {
         updateGazePoints()
             .catch(err => {
                 clearInterval(infer);
-                console.log(err)
+                console.error(err)
             });
     }, inferInterval);
 });

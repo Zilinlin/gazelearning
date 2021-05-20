@@ -375,12 +375,12 @@ def confusion_detection():
     
     try:
         if stage == 0:
-            app.logger.info(username,
-                'stage', stage,
-                '{}:No.{}'.format(
-                    'Confusion' if data['label'] else 'Neutral', TOTAL + 1 - data['frameId']),
-                time.time()
-                )
+            app.logger.info('{}, stage {}, {}:No.{}'.
+                format(username,
+                    stage,
+                    'Confusion' if data['label'] else 'Neutral',
+                    TOTAL + 1 - data['frameId']
+            ))
             metricPool[username].inc_req()
             modelPool[username].addData(img, data['label'], data['frameId'])
             app.logger.info('after add data')

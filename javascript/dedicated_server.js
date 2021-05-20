@@ -130,6 +130,7 @@ if (!DEPLOY) {
             'userInfo',
             JSON.stringify({
                 'identity': content.identity,
+                'name': content.name,
                 'number': identity === STUDENT ? registeredStudents.get(content.name) : null,
                 'authcode': identity === STUDENT ? studentAuthHash : teacherAuthHash,
             })
@@ -405,7 +406,7 @@ const adminNamespace = io.of("/admin");
 adminNamespace.use((socket, next) => {
     socket.userID = randomId();
     socket.name = socket.handshake.auth.name;
-    socket.identity = socket.handshake.auth.identity;
+    socket.identity = +socket.handshake.auth.identity;
 
     logger.info('============================')
     logger.info('New socket.')
@@ -436,7 +437,7 @@ adminNamespace.on("connection", socket => {
 
     adminNamespace.to("admin").emit("users", users); // When new users logged in, notify admin
     logger.info(`Connected users:`);
-    logger.info(users);
+    logger.info(users.map(user => user.name));
 
     socket.on("ready", () => {
         // event ready comes from the teacherPage/studentPage.

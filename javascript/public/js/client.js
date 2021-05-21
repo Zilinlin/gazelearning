@@ -109,7 +109,7 @@ window.onbeforeunload = function () {
 // [Entry 2] Lecture
 socket.on("teacher start", ()=>{
     if ( !(gazeInfo || cogInfo) ) return; // Nothing happens
-    sync();
+    sync().catch(err => console.error(err));
 });
 
 document.getElementById("sync").addEventListener(
@@ -236,16 +236,19 @@ async function updateGazePoints(userInfo) {
         // Cognitive bar chart
         if (cogInfo) { // gazeInfo off/on, cogInfo on
             // Show global cognitive information.
-            result.cognitives.forEach((cogInfo) => {
-                // cogInfo {stuNum: number, confusion: string[], inattention: number}
-                if (cogInfo.inattention > 0) ++inattentionRate;
-                if (!gazeInfo) {
-                    if (cogInfo.confusion.some((state) => state === 'Confused')) ++confusionRate;
-                }
-            })
+            if (total !== 0) {
+                // Otherwise Number/0 will lead to NaN and hence no bar chart viz
+                result.cognitives.forEach((cogInfo) => {
+                    // cogInfo {stuNum: number, confusion: string[], inattention: number}
+                    if (cogInfo.inattention > 0) ++inattentionRate;
+                    if (!gazeInfo) {
+                        if (cogInfo.confusion.some((state) => state === 'Confused')) ++confusionRate;
+                    }
+                })
 
-            confusionRate = confusionRate/total;
-            inattentionRate = inattentionRate/total;
+                confusionRate = confusionRate / total;
+                inattentionRate = inattentionRate / total;
+            }
 
             showCognitive([confusionRate, inattentionRate], animationTime);
         } else { // no info post

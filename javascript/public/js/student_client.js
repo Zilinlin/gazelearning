@@ -17,6 +17,7 @@ window.onload = async function () {
     }
 
     //////set callbacks for GazeCloudAPI/////////
+    GazeCloudAPI.APIKey= "ucsd_NonCommercial";
     GazeCloudAPI.OnCalibrationComplete = function () {
         console.log('gaze Calibration Complete');
         calibrated = true;

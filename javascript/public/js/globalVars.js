@@ -316,11 +316,6 @@ function PlotGaze(GazeData) {
 
 }
 
-// window.onbeforeunload = function () {
-//     webgazer.end();
-//     // closeWebGazer();
-// }
-
 // Kalman Filter defaults to on. Can be toggled by user.
 window.applyKalmanFilter = true;
 
@@ -422,6 +417,10 @@ const socket = io(socketEndpoint, {
     }
 });
 socket.connect();
+
+window.addEventListener("beforeunload", function(event) {     
+    socket.disconnet();
+ });
 
 // [Entry 1] Pre-lecture
 socket.on("delay", (delay) => {

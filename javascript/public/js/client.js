@@ -99,10 +99,10 @@ window.onload = async function () {
 
 }
 
-window.onbeforeunload = function () {
+window.addEventListener("beforeunload", function(event) {     
     webgazer.end();
     // closeWebGazer();
-}
+ });
 
 // @string.Format("https://zoom.us/wc/{0}/join?prefer=0&un={1}", ViewBag.Id, System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("Name Test")))
 

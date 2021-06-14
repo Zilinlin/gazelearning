@@ -48,9 +48,6 @@
             border-color: red;
             border-style: dashed;
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
             margin: 0;
         }
 
@@ -118,6 +115,7 @@
                                         <option value="-0600">MST</option>
                                         <option value="-0500">CST</option>
                                         <option value="-0400">EST</option>
+                                        <option value="0800">BJG</option>
                                     </select>
                                 </div>
                             </div>
@@ -182,7 +180,6 @@
 
     <div class="tab-pane fade" id="nav-zoom" role="tabpanel" aria-labelledby="nav-profile-tab">
         <div id="container" ondblclick="e.preventDefault();">
-            <svg id="plotting_svg"></svg>
             <!--<img src='regression.jpg'>-->
         </div>
     </div>
@@ -331,6 +328,7 @@
                             <option value="-0600">MST</option>
                             <option value="-0500">CST</option>
                             <option value="-0400">EST</option>
+                            <option value="0800">BJG</option>
                         </select>
                     </div>
                 </div>
@@ -412,8 +410,10 @@
             case -7:
                 document.getElementById(`edit-timezone-${trialno}`).value = `-0${-offset}00`;
                 break;
+            case 8:
+                document.getElementById(`edit-timezone-${trialno}`).value = `0${offset}00`;
+                break;
             default:
-                // Cause Dongyin is testing in China... Use PST as default
                 document.getElementById(`edit-timezone-${trialno}`).value = `-0700`;
         }
     }
@@ -639,7 +639,7 @@
         console.log('SVG set.');
 
         cog_width = 0.5 * maxW;
-        cog_height = 0.1 * maxH;
+        cog_height = 0.15 * maxH;
         // Map percentage to coordinate
         x = d3.scaleLinear()
             .domain([0, 1])
@@ -651,7 +651,7 @@
 
         let cog_svg = d3.select("#cognitive_svg")
             // .style('left', xOffset)
-            // .style('top', yOffset)
+            .style('top', maxH + yOffset)
             .attr("width", cog_width)
             .attr("height", cog_height);
         cog_svg.append("g").call(xAxis);

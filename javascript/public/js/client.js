@@ -108,7 +108,8 @@ window.addEventListener("beforeunload", function(event) {
 
 // [Entry 2] Lecture
 socket.on("teacher start", ()=>{
-    if ( !(gazeInfo || cogInfo) ) return; // Nothing happens
+    if ( !(gazeInfo || cogInfo) || syncing ) return; // Nothing happens
+    syncing = true;
     sync().catch(err => console.error(err));
 });
 

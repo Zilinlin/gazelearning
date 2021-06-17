@@ -501,6 +501,20 @@ adminNamespace.on("connection", socket => {
             socket.to("teacher").to("admin").emit("user disconnected", socket.userID);
         }
     });
+
+    socket.on("trigger-student-start", ()=>{
+        adminNamespace.to("student").emit("student start");
+        logger.info('============================');
+        logger.info('Triggered student start event to students');
+        adminNamespace.to("admin").emit("triggered");
+    });
+
+    socket.on("trigger-teacher-start", ()=>{
+        adminNamespace.to("teacher").to("admin").emit("teacher start");
+        logger.info('============================');
+        logger.info('Triggered teacher start event to teacher and admin');
+        adminNamespace.to("admin").emit("triggered");
+    });
 });
 
 // ===================================

@@ -1,4 +1,5 @@
 let calibrated = false;
+let syncing = false; // Avoid syncing multiple times
 let wg_started = false;
 let gc_started = false;
 let heatmapInstance = null;

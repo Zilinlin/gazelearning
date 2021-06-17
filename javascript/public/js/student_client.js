@@ -25,7 +25,8 @@ window.onload = async function () {
         hm_left = pos.left;
         hm_top = pos.top;
         // [Adaptive] Follow openModal function to see how to adapt to different experiment settings
-        if (cogInfo) openModal('initModal');
+        // coginfo in need and not collected
+        if (cogInfo && totalConfused > 0) openModal('initModal');
     }
     GazeCloudAPI.OnCamDenied = function () { console.log('camera access denied') }
     GazeCloudAPI.OnError = function (msg) { console.log('err: ' + msg) }
@@ -108,9 +109,10 @@ function systemStart(fastMode) {
 
 // [Entry 2] Lecture
 socket.on("student start", () => {
-    if ( !(gazeInfo || cogInfo) ) return; // Nothing happens
+    if ( !(gazeInfo || cogInfo) || syncing ) return; // Nothing happen
 
     console.log('========== Synchronizing ==========');
+    syncing = true;
     let infer = setInterval(() => {
         updateGazePoints()
             .catch(err => {

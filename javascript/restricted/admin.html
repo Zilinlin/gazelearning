@@ -175,6 +175,20 @@
                     <p class="card-text" id="countdown-description"></p>
                 </div>
             </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title" id="toolkits">Toolkits</h3>
+                    <button type="button" class="btn btn-primary" id="student-start-trigger">Send 'student start'
+                    </button>
+                    <button type="button" class="btn btn-primary" id="teacher-start-trigger">Send 'teacher start'
+                    </button>
+                </div>
+                <div class="card-footer text-muted" id="toolkits-feedback">
+                    Shows feedback from toolkits.
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -193,6 +207,7 @@
     // Global experiment setting
     let gazeInfo,
         cogInfo;
+    let syncing = false; // Avoid syncing multiple times
 
     // =====================Socket.io=====================
     // Socket connection to admin server
@@ -243,6 +258,17 @@
             console.warn('User disconnected, but not shown in the list.');
         }
     });
+
+    socket.on("triggered", ()=>{
+        document.getElementById("toolkits-feedback").innerText = `Successfully triggered. @ ${new Date()}`;
+    })
+
+    document.getElementById("student-start-trigger").addEventListener("click", ()=>{
+        socket.emit("trigger-student-start");
+    });
+    document.getElementById("teacher-start-trigger").addEventListener("click", ()=>{
+        socket.emit("trigger-teacher-start");
+    })
 
     // =====================HTTP====================
     // HTTP functions
@@ -770,7 +796,8 @@
     // ==============================================================
     // Socket.io timing control
     socket.on("teacher start", () => {
-        if (!(gazeInfo || cogInfo)) return; // Nothing happens
+        if (!(gazeInfo || cogInfo) || syncing) return; // Nothing happens
+        syncing = true;
         sync();
     });
 

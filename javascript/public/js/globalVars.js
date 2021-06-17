@@ -32,7 +32,7 @@ let frameInterval,
     gazeX = 0,
     gazeY = 0;
 
-const total = 1000;
+const total = 400;
 let totalNeutral = total;
 let totalConfused = total;
 let collecting = 0;
@@ -55,14 +55,14 @@ let secondCounter = 0;
 const inferInterval = 1000; // in micro-second
 const updateInterval = 5; // in second
 
-let userInfo;
+const userInfo = JSON.parse(getCookie('userInfo'));
 let cameraId;
 
 let detector = (typeof EKDetector === 'function') ? new EKDetector() : undefined;
 
-let faceLostReported = false;
+let faceLostReported = false; // To prevent duplicated face lost alert
 let lastHiddenTimestamp;
-let hiddenReported = false;
+let hiddenReported = false; // To prevent duplicated hidden window alert
 // ==============================================================
 // constant definition (for better code comprehension)
 // possible states of variable collecting
@@ -210,7 +210,7 @@ function closeWebGazer() {
         try {
             document.getElementById(webgazer_elems[i]).remove();
         } catch (err) {
-            console.log('Error caught!', err);
+            console.error('Error caught!', err);
         }
     }
     // webgazer_elems.forEach(elem => document.getElementById(elem).remove());
@@ -316,11 +316,6 @@ function PlotGaze(GazeData) {
 
 }
 
-// window.onbeforeunload = function () {
-//     webgazer.end();
-//     // closeWebGazer();
-// }
-
 // Kalman Filter defaults to on. Can be toggled by user.
 window.applyKalmanFilter = true;
 
@@ -407,22 +402,25 @@ function selectCamera() {
         }
     })
     .catch(function (err) {
-        console.log(err.name + ": " + err.message);
+        console.error(err.name + ": " + err.message);
     });
 }
 
 // =====================Socket.io=====================
 // Socket connection to admin server
-const socket = io("/admin", {
-    autoConnect: false,
-});
 
-// SessionID should've been stored on index.html
-const sessionID = sessionStorage.getItem("sessionID");
-if (sessionID) {
-    socket.auth = { sessionID };
-    socket.connect();
-}
+const socketEndpoint = "https://cogteach.com/admin";
+const socket = io(socketEndpoint, {
+    auth: {
+        identity: userInfo.identity,
+        name: userInfo.name,
+    }
+});
+socket.connect();
+
+window.addEventListener("beforeunload", function(event) {     
+    socket.disconnet();
+ });
 
 // [Entry 1] Pre-lecture
 socket.on("delay", (delay) => {

@@ -10,6 +10,7 @@ from flask import Flask, redirect, render_template, request
 import threading
 from threading import Thread
 import logging
+from logging.config import dictConfig
 from sklearn.datasets import make_circles
 from sklearn.neighbors import kneighbors_graph
 from sklearn.cluster import KMeans
@@ -19,24 +20,68 @@ import time
 from timeloop import Timeloop
 from datetime import timedelta
 
-
-app = Flask(__name__)
-
 STUDENT = 1
 TEACHER = 2
+FILEPATH = '/mnt/fileserver'
+# FILEPATH = '/mnt/d/mnt/fileserver'
+
+def getFilename():
+    count = 0
+    today = datetime.date.today()
+    logpath = os.path.join(FILEPATH, 'logs', str(today))
+    if not os.path.exists(logpath):
+        os.makedirs(logpath)
+    else :
+        for filename in os.listdir(logpath):
+            if ('py' in filename and 'd' in filename):
+                count += 1
+    return os.path.join(logpath, 'dedicated-py-{}.log'.format(count))
+
+class InternalFilter():
+    def filter(self, record):
+        if 'dedicated' in record.module:
+            record.module = 'Dedicated'
+        return 0 if 'internal' in record.module else 1
+
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] [%(module)s] [%(levelname)s] %(message)s',
+        'datefmt': '%Y-%m-%d %H:%M:%S'
+    }},
+    'filters': {'no-internal': {
+        '()': InternalFilter # Specify filter class with key '()'
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default',
+        'filters': ['no-internal']
+    },'file' : {
+        'class': 'logging.FileHandler',
+        'filename': getFilename(),
+        'formatter': 'default',
+        'filters': ['no-internal']
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi', 'file']
+    }
+})
+
 all_fixations = {}
 all_saccades = {}
 all_cognitive = {}
 last_seen = {}
 tl = Timeloop()
 
+app = Flask(__name__)
 
 @app.route('/', methods=['GET'])
 def index():
     """ The home page has a list of prior translations and a form to
         ask for a new translation.
     """
-
     return '<h1> Dedicated server (python) is on. </h1>'
 
 
@@ -69,7 +114,7 @@ def spectral_clustering(fx, fy):
     # No more than half the points count classes
     k = np.argmax(np.diff(vals[:vals.shape[0]//2+1])) + 1
 
-    # print('max k', vals.shape[0]//2+1)
+    # app.logger.debug('max k', vals.shape[0]//2+1)
     app.logger.info('optimal K (Fiedler):', k)
 
     X = np.real(vecs[:, 0:3])
@@ -91,7 +136,7 @@ def spectral_clustering(fx, fy):
             best_sil = sil
             best_k = k
             best_cluster = labels
-        # print(k, sil, labels)
+        # app.logger.debug(k, sil, labels)
 
     app.logger.info('sil best:', best_k, best_sil, best_cluster)
 
@@ -104,7 +149,7 @@ def teacher_post():
     role = int(body['role'])
     app.logger.info('==============================')
     app.logger.info('Received POST from {}'.format(
-        'student' if role == 1 else 'teacher'))
+        'student' if role == STUDENT else 'teacher'))
 
     try:
         if role == TEACHER:
@@ -127,7 +172,7 @@ def teacher_post():
                 indexed_cog = {'stuNum': k}
                 indexed_cog.update(v)
                 cognitiveFlat.append(indexed_cog)
-            app.logger.debug('cognitiveFlat : {}'.format(cognitiveFlat))
+            app.logger.info('Student in cognitiveFlat : {}'.format([cogInfo['stuNum'] for cogInfo in cognitiveFlat]))
 
             fixationX = np.array([fix['x_per'] for fix in fixationFlat])
             fixationY = np.array([fix['y_per'] for fix in fixationFlat])
@@ -149,7 +194,7 @@ def teacher_post():
             resp.headers['Content-Type'] = 'application/json'
             return resp
         else:
-            stuNum = int(body['role'])
+            stuNum = int(body['stuNum'])
             app.logger.info('Student number : {}'.format(stuNum))
 
             all_fixations[stuNum] = body['fixations']
@@ -193,6 +238,7 @@ def remove_obs_entries():
         if time.time() - ts > 5:
             del all_fixations[name]
             del all_saccades[name]
+            del all_cognitive[name]
 
 
 if __name__ == '__main__':
@@ -207,7 +253,7 @@ if __name__ == '__main__':
     # App Engine itself will serve those files as configured in app.yaml.
     tl.start()
     try:
-        app.run(host='0.0.0.0', port=PORT, debug=True, threaded=True)
+        app.run(host='0.0.0.0', port=PORT, debug=False, threaded=True)
     except KeyboardInterrupt:
         tl.stop()
 

@@ -48,9 +48,6 @@
             border-color: red;
             border-style: dashed;
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
             margin: 0;
         }
 
@@ -118,6 +115,7 @@
                                         <option value="-0600">MST</option>
                                         <option value="-0500">CST</option>
                                         <option value="-0400">EST</option>
+                                        <option value="0800">BJG</option>
                                     </select>
                                 </div>
                             </div>
@@ -182,7 +180,6 @@
 
     <div class="tab-pane fade" id="nav-zoom" role="tabpanel" aria-labelledby="nav-profile-tab">
         <div id="container" ondblclick="e.preventDefault();">
-            <svg id="plotting_svg"></svg>
             <!--<img src='regression.jpg'>-->
         </div>
     </div>
@@ -200,18 +197,11 @@
     // =====================Socket.io=====================
     // Socket connection to admin server
     const socket = io("https://cogteach.com/admin", {
-        autoConnect: false,
         auth: {
             identity: ADMIN,
             name: 'Administrator',
         }
     });
-
-    const sessionID = sessionStorage.getItem("sessionID");
-    if (sessionID) {
-        socket.auth = {sessionID}; // assignment are converted to object merge, do not overwrite
-    }
-    socket.connect();
 
     socket.on('users', (users) => {
         // Delete all existing list
@@ -244,20 +234,13 @@
         }
     });
 
-    socket.on("session", ({sessionID, userID}) => {
-        // attach the session ID to the next reconnection attempts
-        socket.auth = {sessionID};
-        // store it in the sessionStorage
-        sessionStorage.setItem("sessionID", sessionID);
-        // save the ID of the user
-        socket.userID = userID;
-    });
-
     socket.on("user disconnected", (userID) => {
         let li = document.getElementById(userID);
         if (li) {
             console.log(`User ${li.innerText} has disconnected from the server.`);
             li.remove();
+        } else {
+            console.warn('User disconnected, but not shown in the list.');
         }
     });
 
@@ -269,8 +252,15 @@
             .then(res => res.json())
             .then(trials => {
                 allTrials = trials;
-                gazeInfo = allTrials[0].setting.gazeinfo;
-                cogInfo = allTrials[0].setting.coginfo;
+                if (trials.length === 0) {
+                    gazeInfo = true;
+                    cogInfo = true;
+                    console.error('No registered or legal trial info.');
+                    console.warn('Will use default setting.');
+                } else {
+                    gazeInfo = allTrials[0].setting.gazeinfo;
+                    cogInfo = allTrials[0].setting.coginfo;
+                }
 
                 // Add trial description card
                 trials.forEach((trial, trialno) => {
@@ -338,6 +328,7 @@
                             <option value="-0600">MST</option>
                             <option value="-0500">CST</option>
                             <option value="-0400">EST</option>
+                            <option value="0800">BJG</option>
                         </select>
                     </div>
                 </div>
@@ -419,8 +410,10 @@
             case -7:
                 document.getElementById(`edit-timezone-${trialno}`).value = `-0${-offset}00`;
                 break;
+            case 8:
+                document.getElementById(`edit-timezone-${trialno}`).value = `0${offset}00`;
+                break;
             default:
-                // Cause Dongyin is testing in China... Use PST as default
                 document.getElementById(`edit-timezone-${trialno}`).value = `-0700`;
         }
     }
@@ -475,7 +468,7 @@
             body: postBody,
         }).then(response => {
             if (response.ok) {
-                alert("User information posted.");
+                alert("Trial information posted.");
                 location.reload();
             }
         }).catch(err => {
@@ -646,7 +639,7 @@
         console.log('SVG set.');
 
         cog_width = 0.5 * maxW;
-        cog_height = 0.1 * maxH;
+        cog_height = 0.15 * maxH;
         // Map percentage to coordinate
         x = d3.scaleLinear()
             .domain([0, 1])
@@ -658,7 +651,7 @@
 
         let cog_svg = d3.select("#cognitive_svg")
             // .style('left', xOffset)
-            // .style('top', yOffset)
+            .style('top', maxH + yOffset)
             .attr("width", cog_width)
             .attr("height", cog_height);
         cog_svg.append("g").call(xAxis);
@@ -751,16 +744,19 @@
             // Cognitive bar chart
             if (cogInfo) { // gazeInfo off/on, cogInfo on
                 // Show global cognitive information.
-                result.cognitives.forEach((cogInfo) => {
-                    // cogInfo {stuNum: number, confusion: string[], inattention: number}
-                    if (cogInfo.inattention > 0) ++inattentionRate;
-                    if (!gazeInfo) {
-                        if (cogInfo.confusion.some((state) => state === 'Confused')) ++confusionRate;
-                    }
-                })
+                if (total !== 0) {
+                    // Otherwise Number/0 will lead to NaN and hence no bar chart viz
+                    result.cognitives.forEach((cogInfo) => {
+                        // cogInfo {stuNum: number, confusion: string[], inattention: number}
+                        if (cogInfo.inattention > 0) ++inattentionRate;
+                        if (!gazeInfo) {
+                            if (cogInfo.confusion.some((state) => state === 'Confused')) ++confusionRate;
+                        }
+                    })
 
-                confusionRate = confusionRate / total;
-                inattentionRate = inattentionRate / total;
+                    confusionRate = confusionRate / total;
+                    inattentionRate = inattentionRate / total;
+                }
 
                 showCognitive([confusionRate, inattentionRate], animationTime);
             } else { // no info post

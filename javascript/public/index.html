@@ -157,9 +157,11 @@
         fetch('/admin/trial', {
             method: 'GET',
         }).then(res => res.json()
-        ).then(lectureInfo => formatLectureInfo(lectureInfo)
-        ).catch(e => {
-            console.log(e);
+        ).then(lectureInfo => {
+            if (lectureInfo === null) throw new Error('No registered or legal trial info.');
+            formatLectureInfo(lectureInfo);
+        }).catch(e => {
+            console.error(e);
             formatLectureInfo(errorLectureInfo);
         })
     }
@@ -195,6 +197,7 @@
             formData.delete('first-name');
             formData.delete('last-name');
         } else { // Teacher
+            formData.set('name', 'Instructor');
             formData.set('passcodeHash', await digestMessage(formData.get('passcode')));
             formData.delete('passcode');
         }
@@ -209,7 +212,12 @@
         }).then(response => {
             if (response.ok) {
                 showAlert(successPost, 'success');
-                connectSocket();
+                // connectSocket();
+                if (document.getElementById('identity-0').checked) {
+                    window.open('studentPage.html', '_self');
+                } else {
+                    window.open('teacherPage.html', '_self');
+                }
             } else {
                 // =====Enable buttons
                 document.getElementById("submitbtn").innerText = "Submit";
@@ -226,40 +234,6 @@
             }
         });
     });
-
-    function connectSocket() {
-        // =====Socket connection to admin server
-        const socket = io("https://cogteach.com/admin", {
-            autoConnect: false,
-            auth: {
-                identity: document.getElementById("identity-0").checked ? 1 : 2,
-                name: document.getElementById("identity-0").checked ?
-                    [document.getElementById("first-name").value, document.getElementById("last-name").value].join(' ') : 'Instructor',
-            }
-        });
-        // In case the same user logs in several times
-        const sessionID = sessionStorage.getItem("sessionID");
-        if (sessionID) {
-            socket.auth = { sessionID };
-        }
-        socket.connect();
-        console.log(socket);
-
-        socket.on("session", ({ sessionID, userID }) => {
-            // attach the session ID to the next reconnection attempts
-            socket.auth = { sessionID };
-            // store it in the localStorage
-            sessionStorage.setItem("sessionID", sessionID);
-            // save the ID of the user
-            socket.userID = userID;
-            // Session information is stored. Now redirect to new pages.
-            if (document.getElementById('identity-0').checked) {
-                window.open('studentPage.html', '_self');
-            } else {
-                window.open('teacherPage.html', '_self');
-            }
-        });
-    }
 
     async function digestMessage(message) {
         const msgUint8 = new TextEncoder().encode(message);                           // encode as (utf-8) Uint8Array

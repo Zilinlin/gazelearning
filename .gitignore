@@ -1,15 +1,24 @@
-javascript/node_modules
 .DS_Store
-javascript/package-lock.json
 # python/
 */data*/
 */*/data*/
 .vscode/
 other stuff/
-javascript/public/test.html
+
 .idea/
 *.pem
+
 */__pycache__/
 */*/__pycache__/
+
 fileserver/
 */fileserver/
+
+test.html
+
+/python/res.txt
+javascript/logs
+javascript/node_modules
+javascript/package-lock.json
+javascript/public/media/audio/beep.mp3
+javascript/public/media/audio/male.mp3

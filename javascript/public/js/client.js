@@ -94,9 +94,12 @@ window.onload = async function () {
 
     // const zoomMeeting = document.getElementById("zmmtg-root");
 
-    socket.emit("ready");
-    socket.emit("schedule"); // Schedule start events and when to unregister lecture.
-
+    if (SOCKET) {
+        socket.emit("ready");
+        socket.emit("schedule"); // Schedule start events and when to unregister lecture.
+    } else {
+        blockStart();
+    }
 }
 
 window.addEventListener("beforeunload", function(event) {     
@@ -107,15 +110,11 @@ window.addEventListener("beforeunload", function(event) {
 // @string.Format("https://zoom.us/wc/{0}/join?prefer=0&un={1}", ViewBag.Id, System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("Name Test")))
 
 // [Entry 2] Lecture
-socket.on("teacher start", ()=>{
-    if ( !(gazeInfo || cogInfo) || syncing ) return; // Nothing happens
-    syncing = true;
-    sync().catch(err => console.error(err));
-});
+if (SOCKET) socket.on("teacher start", syncStart);
 
 document.getElementById("sync").addEventListener(
     'click',
-    sync
+    syncStart
 );
 
 async function sync() {
@@ -156,17 +155,14 @@ async function sync() {
     console.log('Cognitive SVG set.');
 
     console.log('========== Synchronizing ==========');
-    let userInfo = getCookie('userInfo');
-    if (!userInfo) throw Error('No user information. Please log in.');
-    userInfo = JSON.parse(userInfo);
-
     let update = setInterval(async () => {
         // error in updateGazePoints() is handled here
-        updateGazePoints(userInfo).catch(err => {
-            clearInterval(update);
-            console.error(err);
-        });
-    }, updateInterval*inferInterval);
+        updateGazePoints()
+            .catch(err => {
+                clearInterval(update);
+                console.error(err);
+            });
+    }, updateInterval * inferInterval);
 }
 
 async function signaling(endpoint, data, role) {
@@ -182,9 +178,9 @@ async function signaling(endpoint, data, role) {
 // error will be handled by parent function, because its async, error are returned in Promise
 }
 
-async function updateGazePoints(userInfo) {
+async function updateGazePoints() {
 // decide what to post, then post using function signaling()
-    let identity =  userInfo['identity']; //teacher(2) or student(1)
+    let identity = userInfo['identity']; //teacher(2) or student(1)
     let studentNumber = userInfo['number'];
     // console.log(`identity ${identity}, studentNumber ${studentNumber}`) // debug line
 

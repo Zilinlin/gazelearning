@@ -159,9 +159,11 @@
         }).then(res => res.json()
         ).then(lectureInfo => {
             if (lectureInfo === null) throw new Error('No registered or legal trial info.');
+            localStorage.setItem("lectureInfo", JSON.stringify(lectureInfo));
             formatLectureInfo(lectureInfo);
         }).catch(e => {
             console.error(e);
+            localStorage.removeItem("lectureInfo");
             formatLectureInfo(errorLectureInfo);
         })
     }
@@ -253,8 +255,8 @@
         document.getElementById("lecture-info").hidden = false;
 
         const currentTime = Date.now();
-        console.log(currentTime);
-        console.log(lectureInfo.lecture.time);
+        console.log(`Current time: ${currentTime}, Readable form: ${new Date(currentTime)}`);
+        console.log(`Lecture time: ${lectureInfo.lecture.time}, Readable form: ${new Date(lectureInfo.lecture.time)}`);
         if (Math.abs(currentTime - lectureInfo.lecture.time) < 30*60*1000) {
             document.getElementById('submitbtn').disabled = false;
         } else {

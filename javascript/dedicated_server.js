@@ -1,5 +1,5 @@
 // Require modules
-const {FILEPATH, errorHandler, getLogger} = require("./helpers");
+const {FILEPATH, errorHandler, getLogger, readUsers, readTrials, Trial} = require("./helpers");
 
 const express = require('express');
 const http = require('http');
@@ -14,6 +14,9 @@ const STUDENT = 1;
 const TEACHER = 2;
 const studentsFilename = path.join(FILEPATH, 'registeredInfo', 'registeredStudents.json');
 const trialsFilename = path.join(FILEPATH, 'registeredInfo', 'registeredTrials.json');
+let studentsFileModifyTime;
+let trialFileModifyTime;
+const regInfoUpdateInterval = 30*60*1000;
 const logger = getLogger('dedicated');
 
 // Run the application
@@ -66,14 +69,25 @@ if (!DEPLOY) {
     const multipart = require("connect-multiparty");
     const multipartyMiddleware = multipart();
 
-    let registeredStudents = new Map(); // Student Name => Student Number, which is the order of student
-    fs.readFile(studentsFilename, 'utf-8', (err, data) => {
-        if (err) throw err;
-        let nameList = JSON.parse(data);
-        nameList.forEach((item, index) => {
-            registeredStudents.set([item.firstName, item.lastName].join(' '), index);
-        });
-    });
+    let registeredStudents;
+    readUsers(studentsFilename).then((users) => {
+        registeredStudents = users
+    }).catch((err) => logger.error(err));
+    let maintainUsers = setInterval(()=>{
+        logger.info(`Updating students list. ${registeredStudents.size} students.`)
+        const stats = fs.statSync(studentsFilename);
+        if (stats.mtimeMs === studentsFileModifyTime) {
+            // File not modified. Skip.
+            logger.info("No change since last update.");
+            return
+        }
+        // File has been modified
+        studentsFileModifyTime = stats.mtimeMs;
+        readUsers(studentsFilename).then((users) => {
+            registeredStudents = users;
+            logger.info(`Students name list updated. Now ${registeredStudents.size} students.`);
+        }).catch((err) => logger.error(err));
+    }, regInfoUpdateInterval);
 
     const teacherPasscodeHash = 'a5ec177fcb171aee626a6c5785c7274693a6a35a8adeae663a9746177ed9ddac';
     const studentAuthHash = '264c8c381bf16c982a4e59b0dd4c6f7808c51a05f64c35db42cc78a2a72875bb';
@@ -249,33 +263,27 @@ let digestMessage = function (message) {
 };
 let authHash = digestMessage(Date.now());
 
-class Trial {
-    constructor(lecture, setting) {
-        this.lecture = lecture;
-        this.setting = setting === undefined ? {gazeinfo: true, coginfo: true} : setting;
-    }
-
-    updateInfo(info) {
-        this.lecture = info.lecture;
-        this.setting = info.setting;
-    }
-}
-
 // ===Initialization
-let registeredTrials = [];
-// Read registered lecture information list
-fs.readFile(trialsFilename, 'utf-8', (err, data) => {
-    if (err) {
-        logger.error(err);
-        throw err;
+let registeredTrials; // Trial[]
+readTrials(trialsFilename).then((trials) => {
+    registeredTrials = trials;
+}).catch((err) => logger.error(err));
+let maintainTrials= setInterval(()=>{
+    logger.info(`Updating trial list. ${registeredTrials.length} trials.`);
+    const stats = fs.statSync(trialsFilename);
+    if (stats.mtimeMs === trialFileModifyTime) {
+        // File not modified. Skip.
+        logger.info("No change since last update.");
+        return
     }
-    let lectureList = JSON.parse(data);
-    let current = new Date().getTime();
-    lectureList.forEach((item) => {
-        if (item.lecture.time <= current) return;
-        registeredTrials.push(new Trial(item.lecture, item.setting));
-    });
-});
+
+    // File has been modified
+    trialFileModifyTime = stats.mtimeMs;
+    readTrials(trialsFilename).then((trials) => {
+        registeredTrials = trials;
+        logger.info(`Trial list updated. Now ${registeredTrials.length} trials.`);
+    }).catch((err) => logger.error(err));
+}, regInfoUpdateInterval);
 
 // === Handles requests from administrator
 let adminRouter = express.Router();
@@ -398,7 +406,9 @@ function informationPost(req, res) {
 const options = { /* ... */ };
 const io = require('socket.io')(server, options);
 
-let unregisterEvent = undefined;
+let unregisterEvent = undefined,
+    startStudentEvent = undefined,
+    startInstructorEvent = undefined;
 
 const randomId = () => crypto.randomBytes(8).toString("hex");
 
@@ -462,24 +472,28 @@ adminNamespace.on("connection", socket => {
         // If the instructor receives "teacher start" event, it is similar to click on sync button;
         // If the student receives "student start" event, it will start to infer every inferInterval;
 
-        let delay;
-        if (registeredTrials.length > 0) {
-            delay = registeredTrials[0].lecture.time - Date.now();
+        logger.info('============================');
+        logger.info('Received schedule event from instructor');
+
+        if (registeredTrials.length <= 0) {
+            logger.info('No registered trials and no start events scheduled.');
+            return
         }
 
-        if (delay > 0 && (unregisterEvent === undefined || unregisterEvent._idleTimeout < 0)) {
+        if (unregisterEvent === undefined || unregisterEvent._idleTimeout < 0) {
             // unregisterEvent === undefined : server just initialized
             // unregisterEvent._idleTimeout < 0 : last timed-out function is executed
 
+            let delay = Math.max(registeredTrials[0].lecture.time - Date.now(), 0);
             // Schedule "student start" event for students
-            let startStudentEvent = setTimeout(() => {
+            startStudentEvent = setTimeout(() => {
                 adminNamespace.to("student").emit("student start");
                 logger.info('============================');
                 logger.info('student start is sent to students');
             }, delay);
 
             // Schedule "teacher start" event for instructor
-            let startInstructorEvent = setTimeout(() => {
+            startInstructorEvent = setTimeout(() => {
                 adminNamespace.to("teacher").to("admin").emit("teacher start");
                 logger.info('teacher start is sent to teacher and administrator');
             }, delay + 2 * 1000); // delay 2 seconds then students
@@ -490,6 +504,10 @@ adminNamespace.on("connection", socket => {
                 logger.info('============================');
                 logger.info('Trial is removed.');
             }, delay + 30 * 60 * 1000);
+
+            logger.info('Start events are scheduled.');
+        } else {
+            logger.info('Already scheduled start events.');
         }
     });
 

@@ -22,14 +22,35 @@
   var API_SECRET = "jEpHG2CHhHUMeHmjnO6pKU15O4uhGRldPAwt";
 
   // some help code, remember mn, pwd, lang to cookie, and autofill.
-  document.getElementById("display_name").value =
-    "CDN" +
-    ZoomMtg.getJSSDKVersion()[0] +
-    testTool.detectOS() +
-    "#" +
-    testTool.getBrowserInfo();
-  document.getElementById("meeting_number").value = testTool.getCookie(
-    "meeting_number"
+  // document.getElementById("display_name").value =
+  //   "CDN" +
+  //   ZoomMtg.getJSSDKVersion()[0] +
+  //   testTool.detectOS() +
+  //   "#" +
+  //   testTool.getBrowserInfo();
+  // document.getElementById("meeting_number").value = testTool.getCookie(
+  //   "meeting_number"
+  // );
+  // [2021/6/26] Autofill the fields with cookie userInfo and localStorage.getItem("lectureInfo")
+  let userInfo = testTool.getCookie("userInfo");
+  const STUDENT = 1;
+  const TEACHER = 2;
+  if (userInfo) {
+    userInfo = JSON.parse(userInfo);
+    if (+userInfo.identity === STUDENT) {
+        document.getElementById("display_name").value = 'Student ' + userInfo.name.split(' ')[0].toUpperCase();
+    } else if (+userInfo.identity === TEACHER) {
+        document.getElementById("display_name").value = userInfo.name;
+    } else {
+        document.getElementById("display_name").value = 'Administrator';
+    }
+  } else {
+    document.getElementById("display_name").value = 'Name unknown';
+  }
+
+  let lectureInfo = JSON.parse(localStorage.getItem("lectureInfo"));
+  document.getElementById("meeting_number").value = lectureInfo !== null ? lectureInfo.lecture.zoomid : testTool.getCookie(
+      "meeting_number"
   );
   document.getElementById("meeting_pwd").value = testTool.getCookie(
     "meeting_pwd"
@@ -92,7 +113,7 @@
         return false;
       }
 
-      
+
       testTool.setCookie("meeting_number", meetingConfig.mn);
       testTool.setCookie("meeting_pwd", meetingConfig.pwd);
 
@@ -109,7 +130,7 @@
           console.log(joinUrl);
           // window.open(joinUrl, "_blank");
           window.open(joinUrl, "websdk-iframe"); // open within iframe
-          // // 2020.10.28 
+          // // 2020.10.28
           // testTool.createZoomNode("websdk-iframe", joinUrl);
         },
       });

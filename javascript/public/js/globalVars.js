@@ -57,6 +57,7 @@ const inferInterval = 1000; // in micro-second
 const updateInterval = 5; // in second
 
 const userInfo = JSON.parse(getCookie('userInfo'));
+const lectureInfo = JSON.parse(localStorage.getItem("lectureInfo"));
 let cameraId;
 
 let detector = (typeof EKDetector === 'function') ? new EKDetector() : undefined;
@@ -79,6 +80,8 @@ const INFERENCE = 1; // server should predict confusion status
 const INCREMENT = 2; // incremental data collection
 // Post random gaze or not
 const RANDOM = false;
+// Use socket or not?
+const SOCKET = false;
 // ==============================================================
 // Built-in gaze data examples
 // Student(client side) randomly selects one to post every set interval (5s now?)
@@ -146,7 +149,7 @@ const modal = document.getElementById('dataCollectModal');
 // window.onclick = function(event) {
 //     if (event.target == modal) {
 //         closeModal();
-//         systemStart(0);
+//         collectionStart(0);
 //     }
 // }
 
@@ -410,68 +413,124 @@ function selectCamera() {
 // =====================Socket.io=====================
 // Socket connection to admin server
 
-const socketEndpoint = "https://cogteach.com/admin";
-const socket = io(socketEndpoint, {
-    auth: {
-        identity: userInfo.identity,
-        name: userInfo.name,
-    }
-});
-socket.connect();
+if (SOCKET) {
+    const socketEndpoint = "https://cogteach.com/admin";
+    const socket = io(socketEndpoint, {
+        auth: {
+            identity: userInfo.identity,
+            name: userInfo.name,
+        },
+        // autoConnect: false
+    });
+    // socket.connect();
 
-window.addEventListener("beforeunload", function(event) {     
-    socket.disconnet();
- });
+    window.addEventListener("beforeunload", function(event) {
+        socket.disconnect();
+    });
 
 // [Entry 1] Pre-lecture
-socket.on("delay", (delay) => {
-    // Change information on modal box
-    delay = delay / 1000; // in seconds
-    let seconds = Math.floor(delay) % 60;
-    delay = (delay - seconds) / 60; // in minutes
-    let minutes = Math.floor(delay) % 60;
-    delay = (delay - minutes) / 60; // in hours
-    let hours = Math.floor(delay);
+    socket.on("delay", (delay) => block(delay));
+}
 
-    if ( (hours === 0 && minutes <= 10) || (seconds < 0) || (minutes < 0) || (hours < 0) ) {
-        // Next lecture will start within 10 minutes OR delay is smaller than 0 (late student)
-        closeModal("before-lecture-modal");
-        // Student will be blocked by next modal dialog
-        // [Adaptive] Follow openModal function to see how to adapt to different experiment settings
-        if ( gazeInfo ) {
-            if (document.getElementById("calibrateModal")) openModal("calibrateModal");
-        } else if ( cogInfo ) { // gazeInfo off, cogInfo on
-            if (document.getElementById("initModal")) openModal('initModal');
-        } else { // no info post
-            // do nothing
-        }
+function block(delay) {
+    // For compatibility with socket event delay
+    // Change countdown information on modal box
+    if ( delay <= hms2timestamp(0, 10, 0) ) {
+        // No need to block. Jump to end
+        blockEnd();
     } else {
-        document.getElementById("countdown-description").innerText = `${hours < 10 ? '0' + hours : hours}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+        document.getElementById("countdown-description").innerText = timeFormatter(delay);
         // Schedule removal of the modal box
-        let countdown = setInterval(() => {
-            [hours, minutes, seconds] = document.getElementById("countdown-description").innerText.split(':');
-            hours = +hours; minutes = +minutes; seconds = +seconds;
-
-            // countdown is over
-            if (hours === 0 && minutes === 10 && seconds === 0) {
-                clearInterval(countdown);
-                closeModal("before-lecture-modal");
-                // Student will be blocked by next modal dialog
-                if (document.getElementById("calibrateModal")) openModal("calibrateModal");
-            }
-
-            if (seconds === 0) {
-                seconds = 59;
-                if (minutes === 0 && hours > 0) {
-                    minutes = 59;
-                    hours = hours - 1;
-                } else {
-                    minutes = minutes - 1;
-                }
-            } else {
-                seconds = seconds - 1;
-            }
-            document.getElementById("countdown-description").innerText = `${hours < 10 ? '0' + hours : hours}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
-        }, 1000);
+        blockStart();
     }
-});
+}
+
+function blockStart() {
+    // Start to countdown
+    if (lectureInfo === null) {
+        document.getElementById("countdown-description").innerText = 'No upcoming lecture. Please be back later.';
+        return
+    }
+
+    let countdown = setInterval(() => {
+        let lectureTime = lectureInfo.lecture.time;
+        let delay = lectureTime - Date.now();
+
+        // countdown is over
+        if ( delay < hms2timestamp(0, 10, 0) ) {
+            clearInterval(countdown);
+            blockEnd();
+        }
+
+        document.getElementById("countdown-description").innerText = timeFormatter(delay);
+    }, 1000);
+}
+
+function blockEnd() {
+    // Next lecture will start within 10 minutes OR delay is smaller than 0 (late student)
+    closeModal("before-lecture-modal");
+    // Student will be blocked by next modal dialog
+    // [Adaptive] Follow openModal function to see how to adapt to different experiment settings
+    if ( gazeInfo ) {
+        if (document.getElementById("calibrateModal")) {
+            // Student will need to calibrate
+            openModal("calibrateModal");
+        } else {
+            // Instructor starts to countdown for sync
+            syncCountdown();
+        }
+    } else if ( cogInfo ) { // gazeInfo off, cogInfo on
+        if (document.getElementById("initModal")) {
+            // Student will need to collect facial expressions
+            openModal('initModal');
+        } else {
+            // Instructor starts to countdown for sync
+            syncCountdown();
+        }
+    } else { // no info post
+        // do nothing
+    }
+}
+
+function timestamp2hms(ts) {
+    ts = ts / 1000; // in seconds
+    let seconds = Math.floor(ts) % 60;
+    ts = (ts - seconds) / 60; // in minutes
+    let minutes = Math.floor(ts) % 60;
+    ts = (ts - minutes) / 60; // in hours
+    let hours = Math.floor(ts);
+    return [hours, minutes, seconds];
+}
+
+function hms2timestamp(h, m, s) {
+    return (s+m*60+h*3600)*1000
+}
+
+function timeFormatter(timestamp) {
+    let [h, m, s] = timestamp2hms(timestamp);
+    return `${h < 10 ? '0' + h : h}:${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`;
+}
+
+function syncCountdown() {
+    // Check if use socket or not. If use socket, then do not countdown
+    // Check if there is registered lectureInfo.
+    if (SOCKET || (lectureInfo === null) ) return;
+
+    let countdown = setInterval(() => {
+
+        let lectureTime = lectureInfo.lecture.time;
+        let delay = lectureTime - Date.now();
+
+        // countdown is over
+        if (delay < 0) {
+            clearInterval(countdown);
+            syncStart()
+        }
+    }, 1000);
+}
+
+function syncStart() {
+    if ( !(gazeInfo || cogInfo) || syncing ) return; // Nothing happen
+    syncing = true;
+    sync().catch(err => console.error(err));
+}

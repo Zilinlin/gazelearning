@@ -1,4 +1,4 @@
-const {FILEPATH, errorHandler, getLogger} = require("./helpers");
+const {FILEPATH, errorHandler, getLogger, readUsers} = require("./helpers");
 
 let express = require('express');
 const path = require('path');
@@ -31,14 +31,28 @@ const STUDENT = 1;
 const TEACHER = 2;
 // Read registered student name list
 const studentsFilename = path.join(FILEPATH, 'registeredInfo', 'registeredStudents.json');
-let registeredStudents = new Map(); // Student Name => Student Number, which is the order of student
-fs.readFile(studentsFilename, 'utf-8', (err, data) => {
-    if (err) throw err;
-    let nameList = JSON.parse(data);
-    nameList.forEach((item, index) => {
-        registeredStudents.set([item.firstName, item.lastName].join(' '), index);
-    });
-});
+let studentsFileModifyTime;
+const regInfoUpdateInterval = 30*60*1000;
+
+let registeredStudents;
+readUsers(studentsFilename).then((users) => {
+    registeredStudents = users
+}).catch((err) => logger.error(err));
+let maintainUsers = setInterval(()=>{
+    logger.info(`Updating students list. ${registeredStudents.size} students.`)
+    const stats = fs.statSync(studentsFilename);
+    if (stats.mtimeMs === studentsFileModifyTime) {
+        // File not modified. Skip.
+        logger.info("No change since last update.");
+        return
+    }
+    // File has been modified
+    studentsFileModifyTime = stats.mtimeMs;
+    readUsers(studentsFilename).then((users) => {
+        registeredStudents = users;
+        logger.info(`Students name list updated. Now ${registeredStudents.size} students.`);
+    }).catch((err) => logger.error(err));
+}, regInfoUpdateInterval);
 
 // ===================================
 // Find dedicated service for instructor

@@ -164,6 +164,7 @@
             <div class="card">
                 <div class="card-body">
                     <h3 class="card-title" id="name-title">Participant List</h3>
+                    <p class="card-text" id="participant-description">Socket is turned off. Cannot show participants.</p>
                 </div>
                 <ul class="list-group list-group-flush" id="name-list">
                 </ul>
@@ -208,67 +209,84 @@
     let gazeInfo,
         cogInfo;
     let syncing = false; // Avoid syncing multiple times
+    const SOCKET = false;
 
     // =====================Socket.io=====================
     // Socket connection to admin server
-    const socket = io("https://cogteach.com/admin", {
-        auth: {
-            identity: ADMIN,
-            name: 'Administrator',
-        }
-    });
-
-    socket.on('users', (users) => {
-        // Delete all existing list
-        let ul = document.getElementById("name-list");
-        ul.innerHTML = '';
-
-        // Sort usernames by dictionary order
-        console.log('USERS:');
-        console.log(users);
-        users = users.filter(user => Boolean(user.name)); // Filter out users whose undefined
-        users.sort((a, b) => {
-            if (a.name !== b.name) {
-                if (a.name === 'Administrator') return -1;
-                if (b.name === 'Administrator') return 1;
-                if (a.name === 'Instructor') return -1;
-                if (b.name === 'Instructor') return 1;
-                return a.name.localeCompare(b.name);
-            } else {
-                return 0
+    if (SOCKET) {
+        const socket = io("https://cogteach.com/admin", {
+            auth: {
+                identity: ADMIN,
+                name: 'Administrator',
             }
         });
 
-        // Add new user li
-        for (let user of users) {
-            let new_li = document.createElement('li');
-            new_li.id = user.userID;
-            new_li.className = "list-group-item";
-            new_li.innerText = user.name;
-            ul.insertAdjacentElement('beforeend', new_li);
-        }
-    });
+        window.addEventListener("beforeunload", function(event) {
+            socket.disconnect();
+        });
 
-    socket.on("user disconnected", (userID) => {
-        let li = document.getElementById(userID);
-        if (li) {
-            console.log(`User ${li.innerText} has disconnected from the server.`);
-            li.remove();
-        } else {
-            console.warn('User disconnected, but not shown in the list.');
-        }
-    });
+        socket.on('users', (users) => {
+            // Delete all existing list
+            let ul = document.getElementById("name-list");
+            ul.innerHTML = '';
 
-    socket.on("triggered", ()=>{
-        document.getElementById("toolkits-feedback").innerText = `Successfully triggered. @ ${new Date()}`;
-    })
+            // Sort usernames by dictionary order
+            console.log('USERS:');
+            console.log(users);
+            users = users.filter(user => Boolean(user.name)); // Filter out users whose undefined
+            users.sort((a, b) => {
+                if (a.name !== b.name) {
+                    if (a.name === 'Administrator') return -1;
+                    if (b.name === 'Administrator') return 1;
+                    if (a.name === 'Instructor') return -1;
+                    if (b.name === 'Instructor') return 1;
+                    return a.name.localeCompare(b.name);
+                } else {
+                    return 0
+                }
+            });
 
-    document.getElementById("student-start-trigger").addEventListener("click", ()=>{
-        socket.emit("trigger-student-start");
-    });
-    document.getElementById("teacher-start-trigger").addEventListener("click", ()=>{
-        socket.emit("trigger-teacher-start");
-    })
+            // Add new user li
+            for (let user of users) {
+                let new_li = document.createElement('li');
+                new_li.id = user.userID;
+                new_li.className = "list-group-item";
+                new_li.innerText = user.name;
+                ul.insertAdjacentElement('beforeend', new_li);
+            }
+        });
+
+        socket.on("user disconnected", (userID) => {
+            let li = document.getElementById(userID);
+            if (li) {
+                console.log(`User ${li.innerText} has disconnected from the server.`);
+                li.remove();
+            } else {
+                console.warn('User disconnected, but not shown in the list.');
+            }
+        });
+
+        socket.on("triggered", ()=>{
+            document.getElementById("toolkits-feedback").innerText = `Successfully triggered. @ ${new Date()}`;
+        })
+
+        document.getElementById("student-start-trigger").addEventListener("click", ()=>{
+            socket.emit("trigger-student-start");
+        });
+        document.getElementById("teacher-start-trigger").addEventListener("click", ()=>{
+            socket.emit("trigger-teacher-start");
+        });
+
+        // Remove participant description
+        document.getElementById("participant-description").remove();
+    } else {
+        document.getElementById("student-start-trigger").addEventListener("click", ()=>{
+            document.getElementById("toolkits-feedback").innerText = 'Socket is turned off. Cannot trigger.';
+        });
+        document.getElementById("teacher-start-trigger").addEventListener("click", ()=>{
+            document.getElementById("toolkits-feedback").innerText = 'Socket is turned off. Cannot trigger.';
+        });
+    }
 
     // =====================HTTP====================
     // HTTP functions
@@ -641,6 +659,30 @@
     let x;
     let y;
 
+    function syncCountdown() {
+        // Check if use socket or not. If use socket, then do not countdown
+        // Check if there is registered lectureInfo.
+        let lectureInfo = JSON.parse(localStorage.getItem("lectureInfo"));
+        if (SOCKET || lectureInfo === null) return;
+
+        let countdown = setInterval(() => {
+
+            let lectureTime = lectureInfo.lecture.time;
+            let delay = lectureTime - Date.now();
+
+            // countdown is over
+            if (delay < 0) {
+                clearInterval(countdown);
+                syncStart()
+            }
+        }, 1000);
+    }
+
+    function syncStart() {
+        if ( !(gazeInfo || cogInfo) || syncing ) return; // Nothing happen
+        syncing = true;
+        sync().catch(err => console.error(err));
+    }
 
     // Basically come from client.js, but have to make some modifications
     async function sync() {
@@ -795,11 +837,11 @@
 
     // ==============================================================
     // Socket.io timing control
-    socket.on("teacher start", () => {
-        if (!(gazeInfo || cogInfo) || syncing) return; // Nothing happens
-        syncing = true;
-        sync();
-    });
+    if (SOCKET) {
+        socket.on("teacher start", syncStart);
+    } else {
+        syncCountdown();
+    }
 
     // ==============================================================
     // Visualization helper functions

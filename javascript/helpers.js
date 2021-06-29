@@ -6,6 +6,18 @@ const winston = require('winston');
 // const FILEPATH = 'D:\\mnt\\fileserver'
 const FILEPATH = '/mnt/fileserver';
 
+class Trial {
+    constructor(lecture, setting) {
+        this.lecture = lecture;
+        this.setting = setting === undefined ? {gazeinfo: true, coginfo: true} : setting;
+    }
+
+    updateInfo(info) {
+        this.lecture = info.lecture;
+        this.setting = info.setting;
+    }
+}
+
 const errorPage = (code, message) => `<head>
     <title>Something's wrong!</title>
     <meta charset="utf-8"/>
@@ -67,8 +79,46 @@ function getLogFilename(servername) {
     return path.join(logpath, `${dedicated ? 'dedicated-' : ''}js-${count}.log`);
 }
 
+async function readTrials(filename) {
+    // Read registered lecture information list
+    return new Promise((resolve, reject) => {
+        fs.readFile(filename, 'utf-8', (err, data) => {
+            if (err) reject(err);
+            else {
+                const gracePeriod = 30*60*1000; // 30min
+                let trials = [];
+                let lectureList = JSON.parse(data);
+                let current = new Date().getTime() - gracePeriod;
+                lectureList.forEach((item) => {
+                    if (item.lecture.time <= current) return;
+                    trials.push(new Trial(item.lecture, item.setting));
+                });
+                resolve(trials);
+            }
+        });
+    });
+}
+
+function readUsers(filename) {
+    // Read registered student name list
+    return new Promise((resolve, reject) => {
+        fs.readFile(filename, 'utf-8', (err, data) => {
+            if (err) reject(err);
+            else {
+                let users = new Map(); // Student Name => Student Number, which is the order of student
+                let nameList = JSON.parse(data);
+                nameList.forEach((item, index) => {
+                    users.set([item.firstName, item.lastName].join(' '), index);
+                });
+                resolve(users);
+            }
+        });
+    });
+}
+
 // Exports
 exports.FILEPATH = FILEPATH;
+exports.Trial = Trial;
 exports.errorHandler = function (err, req, res, next) {
     res.status(err.statusCode).send(errorPage(err.statusCode, err.message));
 }
@@ -81,3 +131,5 @@ exports.getLogger = function (servername) {
         ]
     });
 }
+exports.readUsers = readUsers;
+exports.readTrials = readTrials;

@@ -163,7 +163,7 @@
                     </p>
                 </div>
                 <div class="modal-footer">
-                    <button id="closeBtn" type="button" class="btn btn-light btn-sm" data-dismiss="modal" onclick="closeModal('initModal'); systemStart(true)">No</button>
+                    <button id="closeBtn" type="button" class="btn btn-light btn-sm" data-dismiss="modal" onclick="closeModal('initModal'); collectionStart(true)">No</button>
                     <button type="button" class="btn btn-primary btn-sm" data-dismiss="modal" onclick="closeModal('initModal'); openModal('dataCollectModal')">Collect</button>
                 </div>
             </div>
@@ -186,8 +186,8 @@
                     <canvas id="collect_canvas" width="320px" height="180px" style='display:block;'></canvas>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-light btn-sm" data-dismiss="modal" onclick="closeModal('dataCollectModal'); systemStart(true);">Cancel</button>
-                    <button id="collectBtn" type="button" class="btn btn-primary btn-sm" data-dismiss="modal" onclick="systemStart(false);">Collect</button>
+                    <button type="button" class="btn btn-light btn-sm" data-dismiss="modal" onclick="closeModal('dataCollectModal'); collectionStart(true);">Cancel</button>
+                    <button id="collectBtn" type="button" class="btn btn-primary btn-sm" data-dismiss="modal" onclick="collectionStart(false);">Collect</button>
                 </div>
             </div>
         </div>

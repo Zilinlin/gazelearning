@@ -69,17 +69,22 @@ window.onload = async function () {
 
     selectCamera();
 
-    socket.emit("ready");
+    if (SOCKET) {
+        socket.emit("ready");
+    } else {
+        blockStart();
+    }
 }
 
 // @string.Format("https://zoom.us/wc/{0}/join?prefer=0&un={1}", ViewBag.Id, System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("Name Test")))
 
 // Sync Gaze Information
-function systemStart(fastMode) {
+function collectionStart(fastMode) {
     if (fastMode) {
         console.log('Fast mode is on. No data collection process.')
         totalConfused = 0;
         totalNeutral = 0;
+        syncCountdown();
     } else {
         collecting = CONFUSED; // start with collecting confused expressions
     }
@@ -108,11 +113,10 @@ function systemStart(fastMode) {
 }
 
 // [Entry 2] Lecture
-socket.on("student start", () => {
-    if ( !(gazeInfo || cogInfo) || syncing ) return; // Nothing happen
+if (SOCKET) socket.on("student start", syncStart);
 
+async function sync(){
     console.log('========== Synchronizing ==========');
-    syncing = true;
     let infer = setInterval(() => {
         updateGazePoints()
             .catch(err => {
@@ -120,7 +124,7 @@ socket.on("student start", () => {
                 console.error(err)
             });
     }, inferInterval);
-});
+}
 
 async function updateGazePoints() {
     // Facial expression collection is not finished yet
@@ -437,6 +441,7 @@ async function dataCollecting() {
             collecting = NOTCOLLECTING;
 
             closeModal("dataCollectModal");
+            syncCountdown();
 
             document.getElementById('confused_btn').disabled = false;
             document.getElementById('neutral_btn').disabled = false;
